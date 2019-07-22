@@ -118,11 +118,41 @@ void bound_x1dn(double prim[][N2M][N3M][NPR] )
   
 }
 
+
+
+
+
+
+
+
+
+
+
+/*################################################################################################*/
+/*################################################################################################*/	
+/*################################################################################################*/
+/*################################################################################################*/
+/*####### Here the routine for the boundary conditions on the outer radial boundary are defined ##*/
+/*################################################################################################*/
+/*################################################################################################*/
+/*################################################################################################*/
+/*################################################################################################*/
+
+
+
+
+
+
+
+
 void bound_x1up(double prim[][N2M][N3M][NPR] )
 {
   int i,j,k,m,jref ;
   void inflow_check(double *pr, int ii, int jj, int kk, int type );
   struct of_geom geom ;
+  double r,th,phi,sth,cth ;
+double ur,uh,up,u,rho, pressure ,gamma_cs2, gamma_2, ut, cs2;
+double X[NDIM],vcon[NDIM];
   
   int iNg, jNg, kNg;
 #if(N1!=1)
@@ -147,7 +177,85 @@ void bound_x1up(double prim[][N2M][N3M][NPR] )
         PLOOP prim[N1+iNg][j][k][m] = pbound[N1+iNg][j][k][m];
         pflag[N1+iNg][j][k] = pflag[N1-1][j][k] ;
 #else //outflow
+		/*set the same conditions as in the initial condition but only for the outer radial boundary*/
+		#if(BHL) //Bondi-Lyttleton problem: define boundary cells
+		coord(N1-1,j,k,CENT,X) ; //internal coordinates
+		bl_coord(X,&r,&th,&phi) ; //find r, \theta, \phi
+
+		sth = sin(th) ; /*define sth as the sine of theta coordinate, for convenience*/
+		cth = cos(th) ; /*define cth as the cosine of theta coordinate*/
+		rho = rho_inf; /*just the density at infinity value*/
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Edit boundary conditions below ################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+		/* The boundary conditions have to be set to be the same as the initial conditions, but only for the outer radial boundary. Therefore we only use this routine 'bound_x1up' and not the routines in the other parts of this file*/
+		
+		/*Obtain the metric structure for the outer radial boundary cell using get_geometry(i,j,k,CENT,&geom) */
+		get_geometry(N1-1,j,k,CENT,&geom);
+		/*Access the covariant metric elements g_{rr} as geom.gcov[1][1] and g_{\theta \theta} as geom.gcov[2][2]*/
+		 
+		 
+		/*define vcon values i.e. 3-velocity using Olivers document. In Harmpi vcon[0]=c=1*/
+		vcon[0]= 1.0;
+                vcon[1] = -(1.0/sqrt(geom.gcov[1][1]))*v_inf*cth;
+                vcon[2] = (1.0/sqrt(geom.gcov[2][2]))*v_inf*sth;
+                vcon[3] = 0.0;
+
+		/*next, define the primitive variables, i.e. gamma*velocity, magnetic field, internal energy (u) and density(rho)*/
+
+                /*for finding the pressure, make use of the Mach number and sound speed*/
+                /*then internal energy=pressure/(gam -1)*/
+                gamma_2=1./(1.-v_inf*v_inf); /*fluid Lorentz factor squared*/
+
+                gamma_cs2=(gamma_2-1.)/(Mach_inf*Mach_inf)+1.; /*Lorentz factor sqaured associated with the sound speed*/
+                cs2=1.0-1.0/gamma_cs2; /*sound speed squared*/
+                
+                pressure = rho_inf/((gam/cs2)-gam/(gam-1.0)); /*constant pressure at boundary*/
+                
+                u = pressure/(gam - 1.) ; /*internal energy at boundary*/
+		 
+		/*set primitive variable p for density and internal energy at outer radial boundary cell*/
+		prim[N1-1][j][k][RHO]=   rho; /*density at infinity*/
+    	  	prim[N1-1][j][k][UU] =   u;   /*internal energy at infinity*/ 
+
+ 		/*hydro problem so magnetic fields are zeros*/
+    	  	prim[N1-1][j][k][B1] = 0.0; 
+    	  	prim[N1-1][j][k][B2] = 0.0;
+    	  	prim[N1-1][j][k][B3] = 0.0;
+
+		/*primitive variable for velocity: \gamma * v^{i} */
+		prim[N1-1][j][k][U1] =  sqrt(gamma_2)*vcon[1];
+    	  	prim[N1-1][j][k][U2] =  sqrt(gamma_2)*vcon[2];
+    	  	prim[N1-1][j][k][U3] =  sqrt(gamma_2)*vcon[3];
+ 
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Edit boundary conditions above ################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+		  
+		  
+    	  
+        #endif
+        /*define ghost cells*/
         PLOOP prim[N1+iNg][j][k][m] = prim[N1-1][j][k][m];
+        
         pflag[N1+iNg][j][k] = pflag[N1-1][j][k] ;
 #endif
       }
@@ -158,19 +266,52 @@ void bound_x1up(double prim[][N2M][N3M][NPR] )
         rescale(prim[N1-1+iNg][j][k],REVERSE, 1, N1-1+iNG,j,k,CENT,&geom) ;
       }
 #endif
+	
+  
     }
   }
   /* make sure there is no inflow at the outer boundary */
-  if(1!=INFLOW) {
+  if(1!=INFLOW && BHL!=1) {
     for(i=N1;i<=N1+N1G-1;i++)  for(j=-N2G;j<N2+N2G;j++) for(k=-N3G;k<N3+N3G;k++)
     {
       //!!!ATCH: eliminated one loop that seemed excessive. verify.
       inflow_check(prim[i][j][k],i,j,k,1) ; //1 stands for +x1 boundary
     }
   }
+  //#endif
+  
 
 #endif
 }
+
+
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/	
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*####### Here the routine for the boundary conditions on the outer boundary ends  ########*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void bound_x2dn_polefix( double prim[][N2M][N3M][NPR] )
 {

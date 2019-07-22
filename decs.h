@@ -69,6 +69,18 @@
 //whether to write out ener files. since so far no use of them, set to zero
 #define DOENER (0)
 
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Here in 'WHICHPROBLEM' you specify which problem the code has to use    #######*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
 //which problem
 #define MONOPOLE_PROBLEM_1D 1
 #define MONOPOLE_PROBLEM_2D 2
@@ -78,10 +90,48 @@
 #define BONDI_PROBLEM_2D 6
 #define SNDWAVE_TEST 7
 #define ENTWAVE_TEST 8
+#define BHL_PROBLEM_2D 9
+#define BHL_DISK_PROBLEM_2D 10
 
-#define WHICHPROBLEM TORUS_PROBLEM
+
+
+#define WHICHPROBLEM TORUS_PROBLEM        /* Here the problem you choose is defined*/
+
 #define DOKTOT   1
 #define DOCYLINDRIFYCOORDS 0
+
+#if(WHICHPROBLEM == BHL_PROBLEM_2D || WHICHPROBLEM == BHL_DISK_PROBLEM_2D)
+#define BHL 1
+#else
+#define BHL 0
+#endif
+
+/*#########################################################################################*/
+/*#########################################################################################*/	
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### In the following part, BHL and BHL_DISK problem parameters are defined ########*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+#define Mach_inf 1.28 /*Mach number at boundary*/
+#define v_inf 0.2 /*velocity at boundary*/
+#define rho_inf 1.0 /*density at boundary*/
+#define rhod 100.0 /*The peak-density of the disk*/
+#define zd 100.0 /*The initial vertical position of the disk mid-plane in gravitational radii units*/
+#define deltad 25.0 /*The disk thickness*/
+
+/*#########################################################################################*/
+/*#########################################################################################*/	
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### In the ab0ve part, BHL and BHL_DISK problem parameters are defined ############*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
 
 /** here are the few things that we change frequently **/
 
@@ -113,8 +163,8 @@
 #define PERIODIC (0)          /* whether or not to use periodic boundary conditions */
 #define OUTFLOW  (0)          /* whether or not to use outflow boundary conditions in all directions */
 #elif WHICHPROBLEM == TORUS_PROBLEM
-#define N1       (128)         /* number of physical zones in X1-direction */  //change back to 256x256
-#define N2       (128)         /* number of physical zones in X2-direction */
+#define N1       (64)         /* number of physical zones in X1-direction */  //change back to 256x256
+#define N2       (64)         /* number of physical zones in X2-direction */
 #define N3       (1)          /* number of physical zones in X3-direction */
 #define GR       (1)          /* whether or not to use GR */
 #define BL       (1)          /* whether or not to use BL coords */
@@ -157,6 +207,24 @@
 #define INFLOW   (1)          /* whether or not to allow inflow at boundaries */
 #define PERIODIC (1)          /* whether or not to use periodic boundary conditions */
 #define OUTFLOW  (0)          /* whether or not to use outflow boundary conditions in all directions */
+#elif WHICHPROBLEM == BHL_PROBLEM_2D
+#define N1       (128)         /* number of physical zones in X1-direction */
+#define N2       (64)         /* number of physical zones in X2-direction */
+#define N3       (1)          /* number of physical zones in X3-direction */
+#define GR       (1)          /* whether or not to use GR */
+#define BL       (1)          /* whether or not to use BL coords */
+#define INFLOW   (0)          /* whether or not to allow inflow at boundaries */
+#define PERIODIC (0)          /* whether or not to use periodic boundary conditions */
+#define OUTFLOW  (0)          /* whether or not to use outflow boundary conditions in all directions */
+#elif WHICHPROBLEM == BHL_DISK_PROBLEM_2D
+#define N1       (128)         /* number of physical zones in X1-direction */
+#define N2       (64)         /* number of physical zones in X2-direction */
+#define N3       (1)          /* number of physical zones in X3-direction */
+#define GR       (1)          /* whether or not to use GR */
+#define BL       (1)          /* whether or not to use BL coords */
+#define INFLOW   (0)          /* whether or not to allow inflow at boundaries */
+#define PERIODIC (0)          /* whether or not to use periodic boundary conditions */
+#define OUTFLOW  (0)          /* whether or not to use outflow boundary conditions in all directions */
 #endif
 
 
@@ -197,8 +265,8 @@
 #define RESCALE     (0)
 
 /** FIXUP PARAMETERS, magnitudes of rho and u, respectively, in the floor : **/
-#define RHOMIN	(1.e-6)
-#define UUMIN	(1.e-8)
+#define RHOMIN	(1.e-7)
+#define UUMIN	(1.e-9)
 #define RHOMINLIMIT (1.e-20)
 #define UUMINLIMIT  (1.e-20)
 #define POWRHO (2)
@@ -206,7 +274,7 @@
 #define FLOORFACTOR (1.)
 #define BSQORHOMAX (50.*FLOORFACTOR)
 #define BSQOUMAX (2500.*FLOORFACTOR)
-#define UORHOMAX (50.*FLOORFACTOR)
+#define UORHOMAX (500.*FLOORFACTOR)
 
 //add mass in the drift frame (=1) instead of fluid frame (=0)
 #define DRIFT_FLOOR (1)

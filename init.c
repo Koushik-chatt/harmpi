@@ -89,9 +89,26 @@ double normalize_B_by_beta(double beta_target, double (*p)[N2M][N3M][NPR], doubl
 double rmax = 0.;
 double rhomax = 1.;
 
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Here in 'WHICHPROBLEM' different cases are specified each having their  #######*/
+/*######### own initial conditions which are written further down in the file. The  #######*/
+/*######### BHL problem  uses 'init_BHL' in which you have to edit the initial      #######*/
+/*######### conditions. The parts of this file which you have to edit or look at    #######*/
+/*######### below are indicated by large commenting blocks such as this one.	    #######*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+
 void init()
 {
   void init_bondi(void);
+  void init_BHL(void);
   void init_torus(void);
   void init_sndwave(void);
   void init_entwave(void);
@@ -118,9 +135,26 @@ void init()
   case BONDI_PROBLEM_2D:
     init_bondi();
     break;
+  case BHL_PROBLEM_2D:
+    init_BHL();
+    break;
+  case BHL_DISK_PROBLEM_2D:
+    init_BHL();
+    break;
   }
 
 }
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Here 'WHICHPROBLEM' ends 						     ######*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
 
 void init_torus()
 {
@@ -843,7 +877,269 @@ void init_bondi()
 #endif 
 
 
+
+
+
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*### THIS IS THE ROUTINE 'init_BHL' FOR THE INITIAL CONDITIONS FOR THE BHL PROBLEM #######*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+	
+
+
+
+
+
 }
+
+void init_BHL()
+{
+	int i,j,k,m ;
+	double r,th,phi,sth,cth,zcoord ;
+	double ur,uh,up,u,rho, pressure ,gamma_cs2, gamma_2, ut, cs2;
+	double X[NDIM],vcon[NDIM];
+	struct of_geom geom ;
+	double rhor;
+
+	/* for disk interior */
+	double l,rin,lnh,expm2chi,up1 ;
+	double DD,AA,SS,thin,sthin,cthin,DDin,AAin,SSin ;
+	double kappa,hm1 ;
+
+	/* for magnetic field */
+	double A[N1+1][N2+1][N3+1] ;
+	double rho_av,rhomax,umax,beta,bsq_ij,bsq_max,norm,q,beta_act ;
+	double rmax, lfish_calc(double rmax) ;
+
+	/* some physics parameters */
+	gam = 5./3. ;				/*Here the adiabatic index gam (gamma-hat) is defined*/
+
+	/* black hole parameters */
+	a = 0.0 ;				/*Here the black hole spin is defined*/
+
+    
+
+	kappa = 1.e-3 ;
+
+        /* some numerical parameters */
+        lim = MC ;
+        failed = 0 ;	/* start slow */
+        cour = 0.9 ;
+        dt = 1.e-5 ;
+	rhor = (1. + sqrt(1. - a*a)) ;
+	R0 = -2*rhor ;
+        Rin = 0.5*rhor ;
+        Rout = 5e3 ; //outer boundary
+        rbr = Rout*10.;
+        npow2=4.0; //power exponent
+        cpow2=1.0; //exponent prefactor (the larger it is, the more hyperexponentiation is)
+
+
+        t = 0. ;
+        hslope = 1.0 ; //uniform angular grid
+
+	if(N2!=1) {
+	  //2D problem, use full pi-wedge in theta
+	  fractheta = 1.;
+	}
+	else{
+	  //1D problem (since only 1 cell in theta-direction), use a restricted theta-wedge
+	  fractheta = 1.e-2;
+	}
+        fracphi = 1.;
+
+        set_arrays() ;
+        set_grid() ;
+
+	coord(-2,0,0,CENT,X) ;
+	bl_coord(X,&r,&th,&phi) ;
+	fprintf(stderr,"rmin: %g\n",r) ;
+	fprintf(stderr,"rmin/rm: %g\n",r/(1. + sqrt(1. - a*a))) ;
+
+        /* output choices */
+	tf = Rout*10.0 ;
+
+	DTd = 10. ;	/* dumping frequency, in units of M */
+	DTl = 2. ;	/* logfile frequency, in units of M */
+	DTi = 1000. ; 	/* image file frequ., in units of M */
+        DTr = 50 ; /* restart file frequ., in units of M */
+        DTr01 = 1000 ; /* restart file frequ., in timesteps */
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/	
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### In the following part of 'init_BHL' the initial conditions are defined ########*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+
+
+
+
+
+	/* start diagnostic counters */
+	dump_cnt = 0 ;
+	image_cnt = 0 ;
+	rdump_cnt = 0 ;
+    rdump01_cnt = 0 ;
+	defcon = 1. ;
+
+	rhomax = 0. ;
+	umax = 0. ;
+
+	/*looping over each cell in the grid*/
+	ZSLOOP(0,N1-1,0,N2-1,0,N3-1) {
+		  /*find internal coordinates at cell center via coord() function*/
+		  coord(i,j,k,CENT,X) ; 
+		  /*find r, \theta, \phi for the given grid cell*/
+		  bl_coord(X,&r,&th,&phi) ; 
+
+		  sth = sin(th) ; /*define sth as the sine of theta coordinate, for convenience*/
+		  cth = cos(th) ; /*define cth as the cosine of theta coordinate*/
+
+		  /*depending on the problem select your initial density profile*/
+		  if(WHICHPROBLEM == BHL_DISK_PROBLEM_2D){ /*start an if-else loop for rho*/
+		  zcoord=r*cth;
+		  rho = rho_inf + rhod*exp(-pow(zcoord-zd,2)/(2.0*pow(deltad,2))); /*rho for BHL_DISK problem*/
+		  }
+		  else{
+		  rho = rho_inf; /*rho for BHL problem, so uniform density everywhere*/
+		  
+		  }
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Edit initial conditions below #################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+	
+
+
+
+
+		/*Obtain the metric structure for the each cell using get_geometry(i,j,k,CENT,&geom) */
+		get_geometry(i,j,k,CENT,&geom);
+		/*Access the covariant metric elements g_{rr} as geom.gcov[1][1] and g_{\theta \theta} as geom.gcov[2][2]*/
+		 
+		/*define vcon values i.e. 3-velocity using Olivers document. In Harmpi vcon[0]=c=1*/
+		  
+		vcon[0]= 1.0; 		
+		vcon[1] = -(1.0/sqrt(geom.gcov[1][1]))*v_inf*cth;
+		vcon[2] = (1.0/sqrt(geom.gcov[2][2]))*v_inf*sth;
+		vcon[3] = 0.0;
+		  
+	  	/*define the primitive variables, i.e. gamma*velocity, magnetic field, internal energy (u) and density(rho)*/
+		
+		/*for finding the pressure, make use of the Mach number and sound speed*/
+		/*then internal energy=pressure/(gam -1)*/
+		gamma_2=1./(1.-v_inf*v_inf); /*fluid Lorentz factor squared*/
+		  
+		gamma_cs2=(gamma_2-1.)/(Mach_inf*Mach_inf)+1.; /*Lorentz factor sqauredassociated with the sound speed*/
+		cs2=1.0-1.0/gamma_cs2; /*sound speed squared*/
+		  
+		pressure = rho_inf/((gam/cs2)-gam/(gam-1.0)); /*constant pressure everywhere*/
+		 
+		u = pressure/(gam - 1.) ; /*internal energy*/
+    	  	
+		/*set primitive variable p for density and internal energy*/
+		p[i][j][k][RHO]=   rho;  /*density at infinity*/
+    	  	p[i][j][k][UU] =   u; /*internal energy at infinity*/ 
+    	  
+    	  	/*hydro problem so magnetic fields are zeros*/
+    	  	p[i][j][k][B1] = 0.0; 
+    	  	p[i][j][k][B2] = 0.0;
+    	  	p[i][j][k][B3] = 0.0;
+    	  
+    	  	/*primitive variable for velocity: \gamma * v^{i} */
+    	  	p[i][j][k][U1] =  sqrt(gamma_2)*vcon[1];
+    	  	p[i][j][k][U2] =  sqrt(gamma_2)*vcon[2];
+    	  	p[i][j][k][U3] =  sqrt(gamma_2)*vcon[3];
+		  
+
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*######### Edit initial conditions above #################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+
+
+	}
+
+	fixup(p) ;
+	bound_prim(p) ;
+    
+    
+
+    
+#if( DO_FONT_FIX ) 
+	set_Katm();
+#endif 
+
+
+
+}
+
+
+
+
+
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*################### THIS IS WHERE THE ROUTINE 'init_BHL' ENDS ###########################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+/*#########################################################################################*/
+
+
+
+
+
+
+
+
+
+
 
 void init_monopole(double Rout_val)
 {

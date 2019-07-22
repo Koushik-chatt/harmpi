@@ -128,8 +128,8 @@ def Ebindisco(a):
     #Eb = (1.-3.**(-0.5))*a**2
     return( Eb )
 
-def mkmov_simple(starti=0,endi=400,length=10):
-    for i in np.arange(starti,endi+1):
+def mkmov_simple(starti=0,endi=400):
+    for i in range(starti,endi+1):
         rd("dump%03d" % i);
         aphi=psicalc()
         if i == starti: amax = aphi.max()
@@ -141,7 +141,6 @@ def mkmov_simple(starti=0,endi=400,length=10):
         plc(aphi,levels=np.linspace(-amax,amax,10)[1:-1],colors="white",linewidths=2,xy=-1)
         print(i);
         plt.title("t=%.4g"%np.round(t)); 
-        plt.xlim(0,length);plt.ylim(-0.5*length,0.5*length)
         plt.draw();
         plt.savefig("frame%03d.png"%i)
 
@@ -1017,6 +1016,8 @@ if __name__ == "__main__":
         plc(r,np.log10(rho),cb=True,xy=1,xmax=100,ymax=50)
 
 
+
+
 def bhole():
 
     ax = plt.gca()
@@ -1097,6 +1098,127 @@ def amax(arg1,arg2):
 def amin(arg1,arg2):
     return(np.minimum(arg1,arg2))
 
+def sph_to_cart(var,bs1,bs2,bs3):
+    var_cart=np.zeros_like(var)
+    J_cart=np.zeros((4,4,bs1,bs2,bs3))
+    J_cart[0,0,:,:,:]=1.0
+    J_cart[1,1,:,:,:]=(np.sin(h)*np.cos(ph))[:,:,:]
+    J_cart[1,2,:,:,:]=(r*np.cos(h)*np.cos(ph))[:,:,:]
+    J_cart[1,3,:,:,:]=0.;#-(r*np.sin(h)*np.sin(ph))[:,:,:]
+    J_cart[2,1,:,:,:]=0.;#(np.sin(h)*np.sin(ph))[:,:,:]
+    J_cart[2,2,:,:,:]=0.;#(r*np.cos(h)*np.sin(ph))[:,:,:]
+    J_cart[2,3,:,:,:]=(r*np.sin(h)*np.cos(ph))[:,:,:]
+    J_cart[3,1,:,:,:]=np.cos(h[:,:,:])
+    J_cart[3,2,:,:,:]=-(r*np.sin(h))[:,:,:]
+    var_cart[:]=mdot(J_cart[:,:],var[:])
+    return var_cart
+
+def velocity_cart():
+	global vu_cart, vkerr, uu_cart, uukerr
+	beta=np.zeros((4,bs1,bs2,1))
+	vkerr=np.zeros_like(uu)
+	uukerr=np.zeros_like(uu)
+	uu_cart=np.zeros_like(uu)
+	uu_KS=np.zeros_like(uu)
+	vu_cart=np.zeros_like(uu)
+	uu_cart=np.zeros_like(uu)
+			
+	alpha = 1./(-gcon[0,0])**0.5
+	beta[1:4] = gcon[0,1:4]*alpha*alpha
+	vkerr[1:4] = (beta[1:4] + uu[1:4]/uu[0])/alpha
+	vkerr[:]=mdot(dxdxp[:,:], vkerr[:])
+	uukerr[:]=mdot(dxdxp[:,:],uu[:])
+	vu_cart=sph_to_cart(vkerr,bs1,bs2,bs3)
+	uu_cart=sph_to_cart(uukerr,bs1,bs2,bs3)
+
+
+def cart_coords():
+	global coord_cart,coord_KS,bs1,bs2,bs3,X
+	bs1=len(r[:,0,0])
+	bs2=len(r[0,:,0])
+	bs3=len(r[0,0,:])
+	coord_KS=np.zeros_like(uu)
+	X=np.zeros_like(uu)
+	coord_cart=np.zeros_like(uu)
+	coord_KS[1]=r
+	coord_KS[2]=h
+	coord_KS[3]=ph
+	coord_cart=sph_to_cart(coord_KS,bs1,bs2,bs3)
+	X[1]=r*np.sin(h)
+	X[3]=r*np.cos(h)
+
+def sph_to_cart2(X, h, ph):
+    X[1] = np.sin(h) * np.cos(ph)
+    X[2] = np.sin(h) * np.sin(ph)
+    X[3] = np.cos(h)
+
+
+#plot in cartesian coordinates
+def movie(dumpstart,dumpend, xmax1=20, skip1=16, skip2=16):
+	str=os.getcwd()
+	for itot in range(dumpstart,dumpend+1):
+		rg("gdump")
+		rd("dump%03d" %itot)
+		ph[:,:,:]=0.0;
+		cart_coords()
+
+		velocity_cart()
+		plco(np.log10(rho),xy=1,xmax=xmax1,ymax=xmax1/2,cb=True,isfilled=1,levels=np.arange(-0.5,2,0.01),cmap=cm.jet)
+		plt.suptitle(r"$log_{10}(\rho)$ at $t=%d r_g/c$"%t)
+		ax=plt.gca()
+		#ax.quiver(X[1,::skip1,::skip2,0],X[3,::skip1,::skip2,0],vu_cart[1,::skip1,::skip2,0]/np.sqrt(vu_cart[1,::skip1,::skip2,0]**2+vu_cart[3,::skip1,::skip2,0]**2),vu_cart[3,::skip1,::skip2,0]/np.sqrt(vu_cart[1,::skip1,::skip2,0]**2+vu_cart[3,::skip1,::skip2,0]**2))
+		ax.quiver(X[1,::skip1,::skip2,0],X[3,::skip1,::skip2,0],uu_cart[1,::skip1,::skip2,0]/np.sqrt(uu_cart[1,::skip1,::skip2,0]**2+uu_cart[3,::skip1,::skip2,0]**2),uu_cart[3,::skip1,::skip2,0]/np.sqrt(uu_cart[1,::skip1,::skip2,0]**2+uu_cart[3,::skip1,::skip2,0]**2))
+		plt.savefig(str+"/images/BHL_%d.png"%itot,dpi=100)
+		plt.close()
+		plt.cla()
+		plt.clf()
+
+
+#plot in the code coordinates, dubbed as internal coordinates
+def int_movie(dumpstart,dumpend, xmax1=20, skip1=16, skip2=16):
+	str=os.getcwd()
+	for itot in range(dumpstart,dumpend+1):
+		rg("gdump")
+		rd("dump%03d" %itot)
+		ph[:,:,:]=0.0;
+		cart_coords()
+
+		velocity_cart()
+		plt.figure(figsize=(8,8))
+		plc(np.log10(rho),xy=0,xcoord=np.log10(r),ycoord=x2,cb=True,isfilled=1,levels=np.arange(-0.5,2,0.01),cmap=cm.jet)
+		plt.suptitle(r"$log_{10}(\rho)$ at $t=%d r_g/c$"%t)
+		ax=plt.gca()
+		#ax.quiver(X[1,::skip1,::skip2,0],X[3,::skip1,::skip2,0],vu_cart[1,::skip1,::skip2,0]/np.sqrt(vu_cart[1,::skip1,::skip2,0]**2+vu_cart[3,::skip1,::skip2,0]**2),vu_cart[3,::skip1,::skip2,0]/np.sqrt(vu_cart[1,::skip1,::skip2,0]**2+vu_cart[3,::skip1,::skip2,0]**2))
+		ax.quiver(np.log10(r[::skip1,::skip2,0]),x2[::skip1,::skip2,0],uu[1,::skip1,::skip2,0]/np.sqrt(gcov[1,1,::skip1,::skip2,0]*uu[1,::skip1,::skip2,0]**2+gcov[2,2,::skip1,::skip2,0]*uu[2,::skip1,::skip2,0]**2),uu[2,::skip1,::skip2,0]/np.sqrt(gcov[1,1,::skip1,::skip2,0]*uu[1,::skip1,::skip2,0]**2+gcov[2,2,::skip1,::skip2,0]*uu[2,::skip1,::skip2,0]**2))
+		plt.savefig(str+"/images/BHL_one_%d.png"%itot,dpi=100)
+		
+		plt.close()
+		plt.cla()
+		plt.clf()
+
+
+#plot accretion rate vs time
+def accretion_rate(dumpstart,dumpend, v_inf):
+	global time, Mdot
+	time=np.zeros(dumpend-dumpstart)
+	Mdot=np.zeros(dumpend-dumpstart)
+	
+	Mdot_HL=4.*np.pi/(v_inf**3)
+	time_HL=2./(v_inf**3)
+	for itot in range(dumpstart,dumpend):
+		rg("gdump")
+		rd("dump%03d" %itot)
+		cell=0
+		while(r[cell,0,0]<rhor):
+			cell+=1
+		ph[:,:,:]=0.0;
+		Mdot[itot-dumpstart]=((-gdet*rho*uu[1]*_dx2*_dx3).sum(-1).sum(-1))[cell]/Mdot_HL
+		time[itot-dumpstart]=t/time_HL
+	plt.plot(time,Mdot)
+	plt.ylabel(r"$\dot{M}/\dot{M}_{\rm HL}$")
+	plt.xlabel(r"$t/t_{\rm HL}$")
+	plt.show()
+		
 
 #############################
 #
